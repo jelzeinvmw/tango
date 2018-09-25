@@ -1,0 +1,10 @@
+---
+project: TMM Auto
+kind: ENDPOINT
+name: Docker Registry
+description: ''
+type: vrcs.docker.registry:DockerRegistry
+properties:
+  password: s2enc~QLJhR9ZEpy6UAgaHLj+mGA==
+  registry: DockerHub
+  username: xiaog

@@ -1,0 +1,13 @@
+---
+project: TMM Auto
+kind: ENDPOINT
+name: GitLab
+description: ''
+type: scm:git
+properties:
+  branch: master
+  repoURL: https://gitlab.com/automationbetauser/demo-project
+  authType: password
+  password: s2enc~H1rLb0qFrZL5umUMid/dCw==
+  userName: automationbetauser
+  serverType: GitLab

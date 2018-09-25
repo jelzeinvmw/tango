@@ -1,0 +1,40 @@
+inputs: {}
+resources:
+  Cloud_Machine_1:
+    type: Cloud.Machine
+    dependsOn:
+      - Cloud_Machine_2
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      constraints:
+        - tag: 'cloud:aws'
+      image: ubuntu
+      flavor: small
+      networks:
+        - name: '${Cloud_Network_1.name}'
+  Cloud_Machine_2:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      image: ubuntu
+      flavor: small
+      networks:
+        - name: '${Cloud_Network_1.name}'
+      count: 1
+  Cloud_Network_1:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: AWS Default Profile
+      networkType: existing
+      constraints:
+        - tag: 'cloud:aws'

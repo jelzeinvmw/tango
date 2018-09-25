@@ -1,0 +1,11 @@
+---
+project: TMM Auto
+kind: ENDPOINT
+name: K8s-AWS
+description: ''
+type: kubernetes:KubernetesServer
+properties:
+  authType: basicAuth
+  password: s2enc~i3ucKBucohCcAvqAPdKn6/m1vbbnPRUT2UVhzt3eTDAncKdbqLW0EQ0qvcoxm/e8
+  userName: admin
+  kubernetesURL: https://api-beta2-satellite-k8s-l-3c3gkf-783805916.us-west-1.elb.amazonaws.com

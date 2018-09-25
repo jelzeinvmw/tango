@@ -1,0 +1,134 @@
+name: vSphereStorageUC4
+iteration: 1
+description: 'Complete vSphere-based Wordpress App with LB, Storage'
+inputs: {}
+resources:
+  LoadBalancer:
+    type: Cloud.LoadBalancer
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      name: wordpress-lb
+      instances: '${WebTier.id}'
+      internetFacing: true
+      network: '${appnet-public.name}'
+      routes:
+        - protocol: HTTP
+          port: '80'
+          instanceProtocol: HTTP
+          instancePort: '80'
+          healthCheckConfiguration:
+            protocol: HTTP
+            port: '80'
+            urlPath: /
+            intervalSeconds: 60
+            timeoutSeconds: 5
+            unhealthyThreshold: 5
+            healthyThreshold: 2
+  WebTier:
+    type: Cloud.Machine
+    dependsOn:
+      - DBTier
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      flavor: small
+      image: ubuntu
+      constraints:
+        - tag: 'cloud:aws'
+      count: 1
+      cloudConfig: |
+        #cloud-config
+        hostname: wordpress-web
+        chpasswd:
+          list: |
+            ubuntu:VMware1!
+          expire: False
+        users:
+          - name: ubuntu
+            passwd: "$1$Lg35t2vk$MIw6mB5VSuZsztttRGlJe0"
+            lock-passwd: False
+            groups: sudo
+            shell: /bin/bash
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        repo_update: true
+        repo_upgrade: all
+        packages:
+          - apache2
+          - php
+          - php-mysql
+          - libapache2-mod-php
+          - php-mcrypt
+          - mysql-client
+        runcmd:
+          - touch /etc/network/interfaces.d/ens33.cfg
+          - echo 'auto ens33 \r\niface ens33 inet dhcp' >> /etc/network/interfaces.d/ens33.cfg
+          - /sbin/ifup ens33
+          - route add default gw 192.168.209.1 ens33
+          - mkdir -p /var/www/html/mywordpresssite && cd /var/www/html && wget https://wordpress.org/latest.tar.gz && tar -xzf /var/www/html/latest.tar.gz -C /var/www/html/mywordpresssite --strip-components 1
+          - for i in {1..5}; do mysql --connect-timeout=3 -h ${DBTier.address} -u root -pmysqlpassword -e "SHOW STATUS;" && break || sleep 15; done
+          - mysql -u root -pmysqlpassword -h ${DBTier.address} -e "create database wordpress_blog;"
+          - mv /var/www/html/mywordpresssite/wp-config-sample.php /var/www/html/mywordpresssite/wp-config.php
+          - sed -i -e s/"define('DB_NAME', 'database_name_here');"/"define('DB_NAME', 'wordpress_blog');"/ /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define('DB_USER', 'username_here');"/"define('DB_USER', 'root');"/ /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define('DB_PASSWORD', 'password_here');"/"define('DB_PASSWORD', 'mysqlpassword');"/ /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define('DB_HOST', 'localhost');"/"define('DB_HOST', '${DBTier.address}');"/ /var/www/html/mywordpresssite/wp-config.php
+          - service apache2 reload
+      networks:
+        - name: '${appnet-isolated.name}'
+      attachedDisks: []
+  DBTier:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 2
+    properties:
+      constraints:
+        - tag: 'cloud:aws'
+      image: ubuntu
+      flavor: small
+      cloudConfig: |
+        #cloud-config
+        hostname: wordpress-mysql.sqa.local
+        users:
+          - name: ubuntu
+            passwd: "$1$Lg35t2vk$MIw6mB5VSuZsztttRGlJe0"
+            lock-passwd: False
+            groups: sudo
+            shell: /bin/bash
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+        chpasswd:
+          list: |
+            ubuntu:VMware1!
+          expire: False
+        repo_update: true
+        repo_upgrade: all
+        packages:
+         - mysql-server
+        runcmd:
+         - sed -e '/bind-address/ s/^#*/#/' -i /etc/mysql/mysql.conf.d/mysqld.cnf
+         - service mysql restart
+         - mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'mysqlpassword';"
+         - mysql -e "FLUSH PRIVILEGES;"
+      networks:
+        - name: '${appnet-isolated.name}'
+  appnet-isolated:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: Default AWS Network
+      networkType: existing
+  appnet-public:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 2
+        - 0
+    properties:
+      name: Default AWS Network
+      networkType: public

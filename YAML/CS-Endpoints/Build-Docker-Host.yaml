@@ -1,0 +1,10 @@
+---
+project: TMM Auto
+kind: ENDPOINT
+name: Build-Docker-Host
+description: ''
+type: vrcs.docker:DockerServer
+properties:
+  url: http://18.211.211.27:4243
+  certificate: ''
+  pollInterval: 5.0

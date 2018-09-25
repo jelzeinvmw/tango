@@ -1,0 +1,20 @@
+inputs: {}
+resources:
+  Cloud_Azure_Machine_1:
+    type: Cloud.Azure.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      image: small
+      flavor: Standard_A0
+      attachedDisks: []
+  Cloud_vSphere_Network_1:
+    type: Cloud.vSphere.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: ''

@@ -1,0 +1,41 @@
+inputs: {}
+resources:
+  web1:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    networks:
+      name: '${Cloud_Network_1.name}'
+    properties:
+      image: CentOS 7.5
+      constraints:
+        - tag: 'cloud:aws'
+      flavor: medium
+      cloudConfig: |
+        #cloud-config
+        users:
+          - name: root
+            ssh-authorized-keys:
+              - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDw3Qk/2mlbGrF6S1Cv3NLw9g2ZFUNoAUKLwmUW5uADpLPgbnA6DXsig69qEurYchOqIU8tvGCRWGBS+T4V3FQdD9UF2R6Sh6w+2mmqXv61Ts9GDmhAaJPCkQsXJlQW2RfgZJg8qRtMhyUfIc0MhmtnHBz5J/I44esDt4uEydlX5tMjsjKlKpeJEMU15zvCXNV/VV3vgEGnSCTiFNTvU+nb97xtQXkcSX0LvF/t1j74PaR7B7XO/i7qbaAJwkq/F1Hh4WteV4yv6XtRmlgWcIE+Gf7Ae3Vvso+VSQLLt00+/vjBGSjVDQORwMDsvk1gJgWbAy884LOgBZTR6saHvCygLY6ZMR5q0rswAejOivoQ1slJxAL1F8NinbYu36OyGtAfDlNGJEkFI8pqFkn7FNrS4m19Xyq3862IdUdAjCkoXO6V2yZTCuS7Or92vhiqnEd8HsIX5LfSHKLaqH5v1YzJhDbd8MjZpFXHNytzBVMCaHJ4Usw+c3gIPInzdf2fFnOx2nt/BijjUQXanEnUSizlZqff+No63UZbo1eN6z4vC6Vs97gH2ARcUHd2s43Fdy/mpF6fJjq8zUoR2kCEF4KvZfnlGJ4BDJubzoaGJ7R4Rzh0u+hZ1axZtnFcEA20ads/FAaF5O0vrFJyY937csYUrv8HhPL5gOUD8lb9zdEklQ==
+        packages:
+          - wget
+        runcmd:
+          - sudo sed -e 's/.*PermitRootLogin no.*/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+          - sudo sed -e 's/.*PermitRootLogin prohibit-password.*/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+          - sudo service sshd restart
+          - wget https://gist.githubusercontent.com/codyde/f42b0ac47f1415c253f4aa25dab8d18b/raw/37841e247b367e4ee7c772b182bad96abbc8c9ab/wavefront.sh
+          - chmod +x wavefront.sh
+          - ./wavefront.sh
+      networks:
+        - name: '${Cloud_Network_1.name}'
+  Cloud_Network_1:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: Default AWS Networks
+      networkType: existing

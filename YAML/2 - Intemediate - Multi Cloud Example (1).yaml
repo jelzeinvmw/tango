@@ -1,0 +1,77 @@
+inputs:
+  tags:
+    type: string
+    enum:
+      - 'cloud:vsphere'
+      - 'cloud:aws'
+      - 'cloud:azure'
+  deployment:
+    type: integer
+  username:
+    type: string
+  password:
+    type: string
+    encrypted: true
+resources:
+  lb:
+    type: Cloud.LoadBalancer
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: lb
+      routes:
+        - protocol: HTTP
+          port: '80'
+          instanceProtocol: HTTP
+          instancePort: '80'
+          healthCheckConfiguration:
+            protocol: TCP
+            port: '80'
+            intervalSeconds: 60
+            timeoutSeconds: 5
+            unhealthyThreshold: 5
+            healthyThreshold: 2
+      network: '${network.name}'
+      instances:
+        - '${web.id}'
+      internetFacing: true
+  web:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 1
+        - 1
+    properties:
+      count: '${input.deployment}'
+      cloudConfig: |
+        #cloud-config
+        hostname: Ubuntu
+        users:
+         - name: ${input.username}
+           passwd: ${input.password}
+           ssh-authorized-keys:
+             - ssh-rsa superepicsecretkeythatyoullneverfigureoutbecauseimajedi
+           sudo: ['ALL=(ALL) NOPASSWD:ALLL']
+           groups: sudo
+           shell: /bin/bash
+        packages:
+          - apache2
+      image: Ubuntu
+      flavor: medium
+      constraints:
+        - tag: '${input.tags}'
+      networks:
+        - name: '${network.name}'
+  network:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 2
+        - 0
+    properties:
+      name: Default AWS Networks
+      networkType: existing
+      constraints:
+        - tag: '${input.tags}'

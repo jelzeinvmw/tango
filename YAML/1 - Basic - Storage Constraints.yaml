@@ -1,0 +1,33 @@
+name: ComputeWithStorageBP
+description: Blueprint with disk
+inputs: {}
+resources:
+  ComputeWithStorage:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      name: Lab-Machine
+      imageRef: 'Template: ubuntu-xenial-16.04-cloudimg_template'
+      flavor: small
+      storage:
+        constraints:
+          - tag: 'env:prod'
+          - tag: bronze
+      attachedDisks:
+        - source: '${Disk1.id}'
+  Disk1:
+    type: Cloud.Volume
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      name: Disk1
+      capacityGb: 8
+      encrypted: true
+      constraints:
+        - tag: silver
+        - tag: 'env:prod'

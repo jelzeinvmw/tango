@@ -1,0 +1,32 @@
+inputs: {}
+resources:
+  vmc-windows:
+    type: Cloud.vSphere.Machine
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    storage: Default
+    properties:
+      flavor: medium
+      image: Windows 2012
+      networks:
+        - name: '${Cloud_Network_1.name}'
+      resourceGroupName: Workloads/cmbu-auto
+      constraints:
+        - tag: 'cloud:vsphere'
+      cloudConfig: |
+        #cloud-config
+        allow_reboot=true
+        set_hostname: codystest01
+  Cloud_Network_1:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: VMWonAWS
+      networkType: existing
+      constraints:
+        - tag: 'cloud:vsphere'

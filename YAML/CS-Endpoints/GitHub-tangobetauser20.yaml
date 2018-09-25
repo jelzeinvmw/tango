@@ -1,0 +1,13 @@
+---
+project: TMM Auto
+kind: ENDPOINT
+name: GitHub-tangobetauser20
+description: ''
+type: scm:git
+properties:
+  branch: tangobetauser20
+  repoURL: https://github.com/vmware-automation/tangodemo
+  authType: password
+  password: s2enc~H1rLb0qFrZL5umUMid/dCw==
+  userName: automationbetauser
+  serverType: GitHub

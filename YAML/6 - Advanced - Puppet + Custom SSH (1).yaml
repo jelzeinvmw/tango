@@ -1,0 +1,92 @@
+inputs:
+  user:
+    type: string
+    title: Username
+  sshpass:
+    type: string
+    title: SSH Key
+    encrypted: true
+  deployments:
+    type: integer
+resources:
+  Apache:
+    type: Cloud.Puppet
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      count: '${input.deployments}'
+      host: '${Web.*}'
+      role: 'role::linux_webserver'
+      osType: linux
+      provider: PuppetAWS
+      username: ubuntu
+      useSudo: true
+      environment: production
+      maxConnectionRetries: 5
+  LB:
+    type: Cloud.LoadBalancer
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: lb
+      routes:
+        - protocol: HTTP
+          port: '80'
+          instanceProtocol: HTTP
+          instancePort: '80'
+          healthCheckConfiguration:
+            protocol: HTTP
+            port: '80'
+            urlPath: /
+            intervalSeconds: 60
+            timeoutSeconds: 5
+            unhealthyThreshold: 5
+            healthyThreshold: 2
+      network: '${AWS Network.name}'
+      instances:
+        - '${Web.id}'
+      internetFacing: true
+  Web:
+    type: Cloud.Machine
+    metadata:
+      layoutPosition:
+        - 1
+        - 1
+    networks:
+      - name: '${AWS Network.name}'
+    properties:
+      count: '${input.deployments}'
+      remoteAccess:
+        authentication: generatedPublicPrivateKey
+      image: ubuntu
+      constraints:
+        - tag: 'cloud:aws'
+      flavor: small
+      cloudConfig: |
+        #cloud-config
+        users:
+          - default
+          - name: ${input.user}
+            ssh-authorized-keys:
+              - ${input.sshpass}
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            shell: /bin/bash
+
+        runcmd:
+         - sudo sed -e 's/.*PasswordAuthentication no.*/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+         - sudo service sshd restart
+      networks:
+        - name: '${AWS Network.name}'
+  AWS Network:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 2
+        - 0
+    properties:
+      name: Default AWS Networks
+      networkType: existing

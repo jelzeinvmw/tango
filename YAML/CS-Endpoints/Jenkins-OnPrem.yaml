@@ -1,0 +1,14 @@
+---
+project: TMM Auto
+kind: ENDPOINT
+name: Jenkins-OnPrem
+description: ''
+type: vrcs.jenkins:JenkinsServer
+properties:
+  url: http://18.206.149.101/jenkins
+  password: s2enc~H1rLb0qFrZL5umUMid/dCw==
+  username: vmware
+  folderPath: ''
+  retryCount: 5.0
+  pollInterval: 15.0
+  retryWaitSeconds: 60.0

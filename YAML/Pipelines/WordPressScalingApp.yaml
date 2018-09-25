@@ -1,0 +1,93 @@
+---
+project: TMM Auto
+kind: PIPELINE
+name: WordPressScalingApp
+enabled: true
+concurrency: 10
+ciWorkspace:
+  image: ''
+  path: ''
+  cache:
+  - ''
+  endpoint: ''
+stageOrder:
+- DEV
+- PROD
+stages:
+  PROD:
+    taskOrder:
+    - Production Approval
+    - Deploy Wordpress App on Prod
+    tasks:
+      Deploy Wordpress App on Prod:
+        type: Blueprint
+        ignoreFailure: false
+        preCondition: ''
+        endpoints:
+          gitServer: GitHub
+        input:
+          filepath: WordPressApp.yaml
+          action: CreateDeployment
+          deploymentName: ''
+          parameters: {
+            size: medium,
+            cluster: '4',
+            disksize: '5'
+          }
+      Production Approval:
+        type: UserOperation
+        ignoreFailure: false
+        preCondition: ''
+        input:
+          summary: '${name}: approval request required for production'
+          pipelineName: ${name}
+          approvers: [
+            gkullberg@vmware.com]
+          description: '${name}: approval request required for production'
+          sendemail: false
+  DEV:
+    taskOrder:
+    - DeployApp
+    - Test Deploy
+    - TearDown
+    tasks:
+      TearDown:
+        type: Blueprint
+        ignoreFailure: false
+        preCondition: ''
+        input:
+          _deploymentFlag: false
+          action: DeleteDeployment
+          deploymentName: ${DEV.DeployApp.output.deploymentName}
+      DeployApp:
+        type: Blueprint
+        ignoreFailure: false
+        preCondition: ''
+        input:
+          blueprint: WordPress AWS
+          action: CreateDeployment
+          deploymentName: Wordpress AWS
+          version: '1.0'
+          parameters: {
+            size: small,
+            cluster: '2',
+            disksize: '2'
+          }
+      Test Deploy:
+        type: SSH
+        ignoreFailure: false
+        preCondition: ''
+        endpoints:
+          agent: OnPremEndpoint
+        input:
+          privatekey: ''
+          password: s2enc~QLJhR9ZEpy6UAgaHLj+mGA==
+          workingDirectory: ''
+          environmentVariables: {
+            }
+          host: 10.180.250.13
+          arguments: [
+            '\${Dev.DeployApp.output.deploymentDetails.resources[''wordpress[0]''].address}']
+          passphrase: ''
+          script: sh /home/vmware/beta/TestDeployment.sh
+          username: vmware

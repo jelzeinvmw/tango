@@ -1,0 +1,151 @@
+#note that this blueprint takes advantage of both RDS and EC2 services
+#it is recommended that you either configure your AWS infrastructure so both
+#services will land in the same VPC, or configure VPC Peering between the two
+#that will be used
+#also, this blueprint takes advantage of the remoteAccess directive
+#please inspect the provisioned web server object in the deployments
+#view to find the ssh private key you can authenticate to the host with
+inputs:
+  webtiersize:
+    type: string
+    enum:
+      - small
+      - medium
+      - large
+    default: small
+    title: Web Tier Size
+    description: Choose a size for your web tier
+  webtierimage:
+    type: string
+    enum:
+      - ubuntu
+      - centos
+    default: ubuntu
+    title: Web Tier Image
+    description: Choose an image for your web tier
+  clusternodecount:
+    type: integer
+    default: 1
+    title: RDS Cluster Nodes
+    description: Number of Nodes for RDS Cluster
+  rdsinstanceclass:
+    type: string
+    default: db.t2.small
+    title: RDS Instance Class
+    description: Enter the desired RDS Instance Class
+  dbname:
+    type: string
+    default: wordpress_blog
+    title: Database Name
+    description: Enter Database Name
+  dbusername:
+    type: string
+    default: root
+    title: Database Username
+    description: Enter DB Username
+  dbpassword:
+    type: string
+    encrypted: true
+    title: Database Password
+    description: Enter Datbase Password
+  finalsnapshot:
+    type: string
+    enum:
+      - 'true'
+      - 'false'
+    default: 'true'
+    title: Skip Final RDS Snapshot
+    description: Set to true to skip final snapshot
+  clusterprefix:
+    type: string
+    default: cluster
+    title: Cluster Name Prefix
+    description: RDS Cluster Name Prefix
+  instanceprefix:
+    type: string
+    default: instance
+    title: Instance Name Prefix
+    description: RDS Instance Name Prefix
+resources:
+  RDS-cluster:
+    type: Cloud.Service.AWS.RDS.Cluster
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      provider: CMBU TMM AWS
+      #note that the provider should be the exact string name of the Cloud Account
+      #where you want to run the Cluster
+      provider_region: us-east-1
+      #note that the provider region should be the exact string name of region within 
+      #the Cloud Account where you want to run the Cluster
+      database_name: '${input.dbname}'
+      master_username: '${input.dbusername}'
+      master_password: '${input.dbpassword}'
+      skip_final_snapshot: '${input.finalsnapshot}'
+      cluster_identifier_prefix: '${input.clusterprefix}'
+  RDS-instance:
+    type: Cloud.Service.AWS.RDS.Cluster.Instance
+    metadata:
+      layoutPosition:
+        - 0
+        - 1
+    properties:
+      provider: CMBU TMM AWS
+      #note that the provider should be the exact string name of the Cloud Account
+      #where you want to run the Instance
+      provider_region: us-east-1
+      #note that the provider region should be the exact string name of region within 
+      #the Cloud Account where you want to run the Instance
+      count: '${input.clusternodecount}'
+      cluster_identifier: '${RDS-cluster.id}'
+      instance_class: '${input.rdsinstanceclass}'
+      identifier_prefix: '${input.instanceprefix}'
+  WordPress-WebTier:
+    type: Cloud.Machine
+    dependsOn:
+      - RDS-instance
+    metadata:
+      layoutPosition:
+        - 0
+        - 2
+    properties:
+      constraints:
+        - tag: 'env:dev'
+      name: WordPress-wp
+      image: '${input.webtierimage}'
+      flavor: '${input.webtiersize}'
+      networks:
+        - name: '${WordPress-Network.name}'
+      remoteAccess:
+        authentication: generatedPublicPrivateKey
+      cloudConfig: |
+        #cloud-config
+        repo_update: true
+        repo_upgrade: all
+
+        packages:
+         - apache2
+         - php
+         - php-mysql
+         - libapache2-mod-php
+         - php-mcrypt
+         - mysql-client
+
+        runcmd:
+         - mkdir -p /var/www/html/mywordpresssite && cd /var/www/html && wget https://wordpress.org/latest.tar.gz && tar -xzf /var/www/html/latest.tar.gz -C /var/www/html/mywordpresssite --strip-components 1
+         - i=0; while [ $i -le 5 ]; do mysql --connect-timeout=3 -h ${RDS-cluster.endpoint} -u ${input.dbusername} -p${input.dbpassword} -e "SHOW STATUS;" && break || sleep 15; i=$((i+1)); done
+         - mysql -u ${input.dbusername} -p${input.dbpassword} -h ${RDS-cluster.endpoint} -e "create database ${input.dbname};"
+         - mv /var/www/html/mywordpresssite/wp-config-sample.php /var/www/html/mywordpresssite/wp-config.php
+         - sed -i -e s/"define('DB_NAME', 'database_name_here');"/"define('DB_NAME', '${input.dbname}');"/ /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define('DB_USER', 'username_here');"/"define('DB_USER', '${input.dbusername}');"/ /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define('DB_PASSWORD', 'password_here');"/"define('DB_PASSWORD', '${input.dbpassword}');"/ /var/www/html/mywordpresssite/wp-config.php && sed -i -e s/"define('DB_HOST', 'localhost');"/"define('DB_HOST', '${RDS-cluster.endpoint}');"/ /var/www/html/mywordpresssite/wp-config.php
+         - service apache2 reload
+  WordPress-Network:
+    type: Cloud.Network
+    metadata:
+      layoutPosition:
+        - 1
+        - 0
+    properties:
+      name: Default-AWS
+      networkType: existing
