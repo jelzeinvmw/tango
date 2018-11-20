@@ -1,0 +1,132 @@
+name: virtualjad_v2
+iteration: 1
+description: WP (latest) for virtualjad.com blog
+inputs:
+  env:
+    type: string
+    enum:
+      - 'env:ezlab'
+      - 'env:aws'
+    default: 'env:ezlab'
+    title: Environment
+    description: Target Environment
+  storage:
+    title: Storage Tier
+    description: Select a Storage Tier
+    type: string
+    enum:
+      - 'storage:flash'
+      - 'storage:sata'
+    default: 'storage:sata'
+  size:
+    type: string
+    enum:
+      - tiny
+      - small
+      - medium
+      - large
+      - stupid expensive
+    default: small
+    description: Deployment size for ALL nodes
+    title: Deployment Size
+  username:
+    type: string
+    minLength: 4
+    maxLength: 20
+    pattern: '[a-z]+'
+    title: Access Username
+    default: wpadmin
+    description: Username for remote access
+  userpassword:
+    type: string
+    pattern: '[a-z0-9A-Z@#$]+'
+    encrypted: true
+    title: Access Password
+    default: VMware1!
+    description: Password for remote access
+resources:
+  DBTier:
+    type: Cloud.Machine
+    properties:
+      storage:
+        constraints:
+          - tag: '${input.storage}'
+      name: wp-mysql
+      image: ubuntu1604
+      flavor: '${input.size}'
+      constraints:
+        - tag: '${input.env}'
+        - tag: 'pool:cloudops'
+        - tag: 'stage:prod'
+      networks:
+        - name: '${WP-Network.name}'
+      remoteAccess:
+        authentication: usernamePassword
+        username: '${input.username}'
+        password: '${input.userpassword}'
+      cloudConfig: |
+        #cloud-config
+        hostname: wp-db-01
+        repo_update: true
+        repo_upgrade: all
+        package_update: true
+        package_upgrade: true
+        packages:
+         - mysql-server
+        runcmd:
+         - sed -e '/bind-address/ s/^#*/#/' -i /etc/mysql/mysql.conf.d/mysqld.cnf
+         - service mysql restart
+         - mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'mysqlpassword';"
+         - mysql -e "FLUSH PRIVILEGES;"
+  WebTier:
+    type: Cloud.Machine
+    dependsOn:
+      - DBTier
+    properties:
+      storage:
+        constraints:
+          - tag: '${input.storage}'
+      name: wp-web
+      image: ubuntu1604
+      count: 1
+      constraints:
+        - tag: '${input.env}'
+        - tag: 'pool:cloudops'
+        - tag: 'stage:prod'
+      flavor: '${input.size}'
+      networks:
+        - name: '${WP-Network.name}'
+      remoteAccess:
+        authentication: usernamePassword
+        username: '${input.username}'
+        password: '${input.userpassword}'
+      cloudConfig: |
+        #cloud-config
+        hostname: wp-web-01
+        repo_update: true
+        repo_upgrade: all
+        package_update: true
+        package_upgrade: true
+
+        packages:
+         - apache2
+         - php
+         - php-mysql
+         - libapache2-mod-php
+         - mysql-client-core-5.7
+         
+        runcmd:
+         - mkdir -p /var/www/html/wordpress && cd /var/www/html && wget https://wordpress.org/latest.tar.gz && tar -xzf /var/www/html/latest.tar.gz -C /var/www/html/wordpress --strip-components 1
+         - i=0; while [ $i -le 5 ]; do mysql --connect-timeout=3 -h ${DBTier.networks[0].address} -u root -pmysqlpassword -e "SHOW STATUS;" && break || sleep 15; i=$((i+1)); done
+         - mysql -u root -pmysqlpassword -h ${DBTier.networks[0].address} -e "create database wordpress_blog;"
+         - mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+         - sed -i -e s/"define('DB_NAME', 'database_name_here');"/"define('DB_NAME', 'wordpress_blog');"/ /var/www/html/wordpress/wp-config.php && sed -i -e s/"define('DB_USER', 'username_here');"/"define('DB_USER', 'root');"/ /var/www/html/wordpress/wp-config.php && sed -i -e s/"define('DB_PASSWORD', 'password_here');"/"define('DB_PASSWORD', 'mysqlpassword');"/ /var/www/html/wordpress/wp-config.php && sed -i -e s/"define('DB_HOST', 'localhost');"/"define('DB_HOST', '${DBTier.networks[0].address}');"/ /var/www/html/wordpress/wp-config.php
+         - service apache2 reload
+  WP-Network:
+    type: Cloud.Network
+    properties:
+      name: WP-Network
+      networkType: existing
+      constraints:
+        - tag: 'net:dev10'
+        - tag: 'env:ezlab'
